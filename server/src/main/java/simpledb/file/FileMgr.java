@@ -25,6 +25,8 @@ public class FileMgr {
    private File dbDirectory;
    private boolean isNew;
    private Map<String,FileChannel> openFiles = new HashMap<String,FileChannel>();
+   private long blocksRead;
+   private long blocksWritten;
 
    /**
     * Creates a file manager for the specified database.
@@ -39,15 +41,19 @@ public class FileMgr {
       String homedir = System.getProperty("user.home");
       dbDirectory = new File(homedir, dbname);
       isNew = !dbDirectory.exists();
+      blocksRead = blocksWritten = 0;
 
       // create the directory if the database is new
       if (isNew && !dbDirectory.mkdir())
          throw new RuntimeException("cannot create " + dbname);
 
       // remove any leftover temporary tables
-      for (String filename : dbDirectory.list())
-         if (filename.startsWith("temp"))
-         new File(dbDirectory, filename).delete();
+      for (String filename : dbDirectory.list()) {
+         if (filename.startsWith("temp")) {
+            new File(dbDirectory, filename).delete();
+         }
+      }
+
    }
 
    /**
@@ -60,6 +66,7 @@ public class FileMgr {
          bb.clear();
          FileChannel fc = getFile(blk.fileName());
          fc.read(bb, blk.number() * BLOCK_SIZE);
+         blocksRead++;
       }
       catch (IOException e) {
          throw new RuntimeException("cannot read block " + blk);
@@ -76,6 +83,7 @@ public class FileMgr {
          bb.rewind();
          FileChannel fc = getFile(blk.fileName());
          fc.write(bb, blk.number() * BLOCK_SIZE);
+         blocksWritten++;
       }
       catch (IOException e) {
          throw new RuntimeException("cannot write block" + blk);
@@ -118,6 +126,20 @@ public class FileMgr {
     */
    public boolean isNew() {
       return isNew;
+   }
+
+   /**
+    * Returns number of blocks read
+    */
+   public long getBlocksRead() {
+      return blocksRead;
+   }
+
+   /**
+    * Returns number of block written
+    */
+   public long getBlocksWritten() {
+      return blocksWritten;
    }
 
    /**
